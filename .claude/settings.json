@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:/Users/Administrator/.claude/skills/chuti\")",
+      "Edit(~/.claude/skills/chuti/**)",
+      "Bash(rm \"C:/Users/Administrator/.claude/skills/chuti/SKILL.md\")",
+      "Edit(~/.claude/skills/real-bug-find/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Administrator\\.claude\\skills",
+      "C:\\Users\\Administrator\\.claude\\skills\\chuti"
+    ]
+  }
+}
