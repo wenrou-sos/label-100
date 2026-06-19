@@ -117,6 +117,13 @@ export const REQUIREMENT_CERT_MAP: Partial<Record<keyof ServiceRequirement, Cert
   housework: ['senior_maternal_care'],
 };
 
+// 面试状态
+export const INTERVIEW_STATUS_META: Record<'pending' | 'done' | 'cancelled', { label: string; color: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'info' }> = {
+  pending: { label: '待面试', color: 'warning' },
+  done: { label: '已完成', color: 'success' },
+  cancelled: { label: '已取消', color: 'default' },
+};
+
 // 服务天数单价（元/天）用于估算合同金额
 export const PRICE_PER_DAY = 480;
 

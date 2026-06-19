@@ -6,6 +6,7 @@ import AssignmentOutlined from '@mui/icons-material/AssignmentOutlined';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
 import FingerprintOutlined from '@mui/icons-material/FingerprintOutlined';
+import VideocamOutlined from '@mui/icons-material/VideocamOutlined';
 
 export interface NavItem {
   label: string;
@@ -21,6 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: '订单管理', path: '/orders', icon: AssignmentOutlined, group: '业务' },
   { label: '合同管理', path: '/contracts', icon: DescriptionOutlined, group: '业务' },
   { label: '支付管理', path: '/payments', icon: PaymentsOutlined, group: '业务' },
+  { label: '面试管理', path: '/interviews', icon: VideocamOutlined, group: '业务' },
   { label: '签到面板', path: '/checkin', icon: FingerprintOutlined, group: '服务' },
 ];
 
@@ -32,6 +34,7 @@ export function titleFromPath(pathname: string): string {
   if (pathname.startsWith('/matching')) return '智能匹配';
   if (pathname.startsWith('/contracts')) return '合同管理';
   if (pathname.startsWith('/payments')) return '支付管理';
+  if (pathname.startsWith('/interviews')) return '面试管理';
   if (pathname.startsWith('/service')) return '服务进度';
   if (pathname.startsWith('/checkin')) return '签到面板';
   if (pathname.startsWith('/dashboard')) return '工作台';

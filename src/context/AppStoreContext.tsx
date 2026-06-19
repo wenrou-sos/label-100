@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Alert, Snackbar, type AlertColor } from '@mui/material';
-import { matronApi, orderApi, contractApi, paymentApi } from '@/services/api';
-import type { Contract, Matron, Order, Payment } from '@/types';
+import { matronApi, orderApi, contractApi, paymentApi, interviewApi } from '@/services/api';
+import type { Contract, Interview, Matron, Order, Payment } from '@/types';
 
 interface ToastState {
   open: boolean;
@@ -14,11 +14,13 @@ interface AppStoreValue {
   orders: Order[];
   contracts: Contract[];
   payments: Payment[];
+  interviews: Interview[];
   loading: boolean;
   refreshMatrons: () => Promise<void>;
   refreshOrders: () => Promise<void>;
   refreshContracts: () => Promise<void>;
   refreshPayments: () => Promise<void>;
+  refreshInterviews: () => Promise<void>;
   refreshAll: () => Promise<void>;
   notify: (message: string, severity?: AlertColor) => void;
 }
@@ -30,6 +32,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>({ open: false, message: '', severity: 'success' });
 
@@ -49,10 +52,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     const res = await paymentApi.list();
     setPayments(res.data);
   }, []);
+  const refreshInterviews = useCallback(async () => {
+    const res = await interviewApi.list();
+    setInterviews(res.data);
+  }, []);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([refreshMatrons(), refreshOrders(), refreshContracts(), refreshPayments()]);
-  }, [refreshMatrons, refreshOrders, refreshContracts, refreshPayments]);
+    await Promise.all([refreshMatrons(), refreshOrders(), refreshContracts(), refreshPayments(), refreshInterviews()]);
+  }, [refreshMatrons, refreshOrders, refreshContracts, refreshPayments, refreshInterviews]);
 
   const notify = useCallback((message: string, severity: AlertColor = 'success') => {
     setToast({ open: true, message, severity });
@@ -74,11 +81,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     orders,
     contracts,
     payments,
+    interviews,
     loading,
     refreshMatrons,
     refreshOrders,
     refreshContracts,
     refreshPayments,
+    refreshInterviews,
     refreshAll,
     notify,
   };

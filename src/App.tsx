@@ -10,6 +10,7 @@ import Matching from '@/pages/Matching';
 import ContractsList from '@/pages/ContractsList';
 import ContractDetail from '@/pages/ContractDetail';
 import Payments from '@/pages/Payments';
+import Interviews from '@/pages/Interviews';
 import ServiceProgress from '@/pages/ServiceProgress';
 import Checkin from '@/pages/Checkin';
 
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/contracts" element={<ContractsList />} />
         <Route path="/contracts/:orderId" element={<ContractDetail />} />
         <Route path="/payments" element={<Payments />} />
+        <Route path="/interviews" element={<Interviews />} />
         <Route path="/service/:orderId" element={<ServiceProgress />} />
         <Route path="/checkin" element={<Checkin />} />
         <Route path="*" element={<NotFound />} />
