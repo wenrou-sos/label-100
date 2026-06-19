@@ -201,8 +201,17 @@ export const paymentApi = {
 export const interviewApi = {
   list: () => ok<Interview[]>(store.listInterviews()),
   byOrder: (orderId: string) => ok<Interview[]>(store.getInterviewsByOrder(orderId)),
-  create: (input: { orderId: string; matronId: string; scheduledAt: string; note?: string }) =>
-    ok<Interview>(store.createInterview(input), '面试预约已创建'),
+  create: (input: { orderId: string; matronId: string; scheduledAt: string; note?: string }) => {
+    const order = store.getOrder(input.orderId);
+    if (!order) return ok<Interview | undefined>(undefined, '订单不存在');
+    // 仅待匹配(matching)或已匹配待签约(matched)的订单可预约面试；
+    // 已签约及之后的状态月嫂已确定，不再预约面试
+    if (order.status !== 'matching' && order.status !== 'matched') {
+      const statusMap: Record<string, string> = { pending: '待匹配', matched: '待签约', contracted: '已签约', in_service: '服务中', completed: '已完成' };
+      return ok<Interview | undefined>(undefined, `该订单已${statusMap[order.status]}，不可再预约面试`);
+    }
+    return ok<Interview>(store.createInterview(input), '面试预约已创建');
+  },
   update: (id: string, patch: Partial<Interview>) => ok<Interview | undefined>(store.updateInterview(id, patch)),
 };
 

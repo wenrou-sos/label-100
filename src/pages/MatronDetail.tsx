@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -35,14 +35,12 @@ import { MatronFormDialog } from '@/components/matron/MatronFormDialog';
 import { MATRON_STATUS_META, INTERVIEW_STATUS_META } from '@/constants/meta';
 import { formatDate, formatDateZh, formatDateTime, maskPhone } from '@/utils/format';
 import { interviewApi } from '@/services/api';
-import type { Interview } from '@/types';
 
 export default function MatronDetail() {
   const { id } = useParams();
-  const { matrons, orders, refreshMatrons, notify } = useAppStore();
+  const { matrons, orders, interviews, refreshInterviews, notify } = useAppStore();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
   const [interviewOpen, setInterviewOpen] = useState(false);
   const [interviewOrderId, setInterviewOrderId] = useState('');
   const [interviewDate, setInterviewDate] = useState('');
@@ -52,22 +50,18 @@ export default function MatronDetail() {
 
   const matron = matrons.find((m) => m.id === id);
 
-  const loadInterviews = useCallback(async () => {
-    if (!id) return;
-    // 从全部面试中筛选出该月嫂的
-    const res = await interviewApi.list();
-    setInterviews(res.data.filter((iv) => iv.matronId === id).sort(
-      (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime(),
-    ));
-  }, [id]);
-
-  useEffect(() => {
-    loadInterviews();
-  }, [loadInterviews]);
+  // 从全局面试记录中筛选当前月嫂的（与面试管理页共享同一数据源）
+  const matronInterviews = useMemo(() => {
+    if (!id) return [];
+    return interviews
+      .filter((iv) => iv.matronId === id)
+      .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+  }, [interviews, id]);
 
   const availableOrders = useMemo(() => {
-    // 待匹配、已匹配的订单都可以预约面试
-    return orders.filter((o) => o.status === 'matching' || o.status === 'matched' || o.status === 'contracted');
+    // 仅待匹配(matching)或已匹配待签约(matched)的订单可预约面试；
+    // 已签约(contracted)月嫂已确定，不再预约面试
+    return orders.filter((o) => o.status === 'matching' || o.status === 'matched');
   }, [orders]);
 
   const handleCreateInterview = async () => {
@@ -75,9 +69,13 @@ export default function MatronDetail() {
     setInterviewSubmitting(true);
     try {
       const scheduledAt = new Date(`${interviewDate}T${interviewTime}:00`).toISOString();
-      await interviewApi.create({ orderId: interviewOrderId, matronId: id, scheduledAt, note: interviewNote });
-      await loadInterviews();
-      await refreshMatrons();
+      const res = await interviewApi.create({ orderId: interviewOrderId, matronId: id, scheduledAt, note: interviewNote });
+      if (!res.data) {
+        notify(res.message, 'error');
+        return;
+      }
+      // 刷新全局面试记录，使面试管理页同步可见
+      await refreshInterviews();
       setInterviewOpen(false);
       setInterviewOrderId('');
       setInterviewDate('');
@@ -253,11 +251,11 @@ export default function MatronDetail() {
                   预约面试
                 </Button>
               </Stack>
-              {interviews.length === 0 ? (
+              {matronInterviews.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>暂无面试记录</Typography>
               ) : (
                 <Stack spacing={1}>
-                  {interviews.slice(0, 5).map((iv) => {
+                  {matronInterviews.slice(0, 5).map((iv) => {
                     const meta = INTERVIEW_STATUS_META[iv.status];
                     const order = orders.find((o) => o.id === iv.orderId);
                     return (
