@@ -1,45 +1,136 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Typography, Divider } from '@mui/material';
+import { Box, Typography, Divider, Button } from '@mui/material';
+import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import { useAppStore } from '@/context/AppStoreContext';
 import { contractApi } from '@/services/api';
 import { formatMoney, formatDate, formatDateZh } from '@/utils/format';
-import type { Contract } from '@/types';
+import type { Contract, Matron, Order } from '@/types';
 
 const A4_WIDTH = 794; // px (96dpi)
 const A4_HEIGHT = 1123; // px (96dpi)
 
+interface PrintPayload {
+  contract: Contract;
+  order: Order;
+  matron: Matron;
+  printedAt: string;
+}
+
 export default function ContractPrint() {
   const { orderId } = useParams();
-  const { orders, matrons } = useAppStore();
+  const { orders, matrons, loading: storeLoading } = useAppStore();
+
   const [contract, setContract] = useState<Contract | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [matron, setMatron] = useState<Matron | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fromCache, setFromCache] = useState(false);
+  const hasPrinted = useRef(false);
 
-  const order = orders.find((o) => o.id === orderId);
-  const matron = matrons.find((m) => m.id === (contract?.matronId ?? order?.selectedMatronId));
-
+  // 1. 优先从 sessionStorage 读取（确保拿到最新数据）
   useEffect(() => {
-    const load = async () => {
-      if (!orderId) return;
+    if (!orderId) return;
+    const cacheKey = `contract_print_${orderId}`;
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (raw) {
+        const payload: PrintPayload = JSON.parse(raw);
+        if (payload.contract && payload.order && payload.matron) {
+          setContract(payload.contract);
+          setOrder(payload.order);
+          setMatron(payload.matron);
+          setFromCache(true);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+
+    // 2. Fallback：从 API 加载（需要等 store 数据准备好）
+    if (storeLoading) return;
+
+    const loadFallback = async () => {
+      const orderFromStore = orders.find((o) => o.id === orderId) || null;
+      if (orderFromStore) {
+        setOrder(orderFromStore);
+      }
       const res = await contractApi.getByOrder(orderId);
-      setContract(res.data ?? null);
+      const c = res.data ?? null;
+      setContract(c);
+      if (orderFromStore && c) {
+        const mid = c.matronId ?? orderFromStore.selectedMatronId;
+        const m = matrons.find((x) => x.id === mid) || null;
+        setMatron(m);
+      } else if (orderFromStore) {
+        const mid = orderFromStore.selectedMatronId;
+        if (mid) {
+          const m = matrons.find((x) => x.id === mid) || null;
+          setMatron(m);
+        }
+      }
       setLoading(false);
     };
-    load();
+    loadFallback();
+  }, [orderId, storeLoading, orders, matrons]);
+
+  // 3. 只有所有数据就绪后才触发打印
+  useEffect(() => {
+    if (loading || !contract || !order || !matron) return;
+    if (hasPrinted.current) return;
+    hasPrinted.current = true;
+    // 给浏览器一点时间确保 DOM 完全渲染
+    const timer = setTimeout(() => {
+      try {
+        window.print();
+      } catch (e) {
+        // ignore print errors
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [loading, contract, order, matron]);
+
+  // 清理：窗口关闭前清除缓存
+  useEffect(() => {
+    const cleanup = () => {
+      if (orderId) {
+        try { sessionStorage.removeItem(`contract_print_${orderId}`); } catch (e) { /* ignore */ }
+      }
+    };
+    window.addEventListener('beforeunload', cleanup);
+    return () => {
+      window.removeEventListener('beforeunload', cleanup);
+      cleanup();
+    };
   }, [orderId]);
 
-  useEffect(() => {
-    if (loading || !contract) return;
-    const timer = setTimeout(() => {
+  const handleManualPrint = () => {
+    hasPrinted.current = false;
+    try {
       window.print();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [loading, contract]);
+    } catch (e) { /* ignore */ }
+  };
 
-  if (loading || !contract || !order || !matron) {
+  const dataReady = !loading && contract && order && matron;
+
+  if (loading) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography>加载中...</Typography>
+      <Box sx={{ p: 8, textAlign: 'center' }}>
+        <Typography color="text.secondary">正在准备打印数据…</Typography>
+      </Box>
+    );
+  }
+
+  if (!dataReady) {
+    return (
+      <Box sx={{ p: 8, textAlign: 'center' }}>
+        <Typography variant="h5" sx={{ mb: 2 }}>数据加载失败</Typography>
+        <Typography color="text.secondary" sx={{ mb: 3 }}>
+          无法获取合同数据，请返回合同详情页重新点击"打印合同"
+        </Typography>
+        <Button variant="contained" onClick={() => window.close()}>关闭窗口</Button>
       </Box>
     );
   }
@@ -61,18 +152,27 @@ export default function ContractPrint() {
         },
       }}
     >
-      {/* 打印提示（仅屏幕显示） */}
+      {/* 打印操作栏（仅屏幕显示） */}
       <Box
         sx={{
           mb: 2,
           display: 'flex',
           gap: 2,
+          alignItems: 'center',
           '@media print': { display: 'none' },
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          预览为 A4 纸比例 · 按 Ctrl+P 或 Cmd+P 可重新打印
+          {fromCache ? '数据来源：实时快照' : '数据来源：后台加载'} · 预览为 A4 纸比例
         </Typography>
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<PrintRoundedIcon />}
+          onClick={handleManualPrint}
+        >
+          打印 / 重新打印
+        </Button>
       </Box>
 
       {/* A4 纸张 */}
@@ -84,6 +184,7 @@ export default function ContractPrint() {
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           p: '80px 70px',
           boxSizing: 'border-box',
+          position: 'relative',
           '@media print': {
             boxShadow: 'none',
             width: 'auto',

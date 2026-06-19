@@ -67,6 +67,25 @@ export default function ContractDetail() {
     }
   };
 
+  const handlePrint = () => {
+    if (!contract || !order || !matron) {
+      notify('合同数据未加载完成，请稍候', 'warning');
+      return;
+    }
+    const payload = {
+      contract,
+      order,
+      matron,
+      printedAt: new Date().toISOString(),
+    };
+    try {
+      sessionStorage.setItem(`contract_print_${order.id}`, JSON.stringify(payload));
+    } catch (e) {
+      // ignore storage errors
+    }
+    window.open(`/contracts/${order.id}/print`, '_blank', 'width=900,height=1200');
+  };
+
   if (loading) return <Card><InlineLoader label="合同加载中…" /></Card>;
   if (!order) return <Card><EmptyState title="订单不存在" actionLabel="返回订单" onAction={() => navigate('/orders')} /></Card>;
   if (!order.selectedMatronId) {
@@ -144,7 +163,7 @@ export default function ContractDetail() {
                 fullWidth
                 variant="outlined"
                 startIcon={<PrintRoundedIcon />}
-                onClick={() => window.open(`/contracts/${order.id}/print`, '_blank', 'width=900,height=1200')}
+                onClick={handlePrint}
                 sx={{ mb: 1.5 }}
               >
                 打印合同
