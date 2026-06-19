@@ -6,6 +6,7 @@ import {
   Card,
   CardActionArea,
   CardContent,
+  Checkbox,
   Chip,
   IconButton,
   InputAdornment,
@@ -22,6 +23,7 @@ import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import DeleteSweepRoundedIcon from '@mui/icons-material/DeleteSweepRounded';
 import Diversity3RoundedIcon from '@mui/icons-material/Diversity3Rounded';
 import { useAppStore } from '@/context/AppStoreContext';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -50,6 +52,11 @@ export default function MatronsList() {
   const [editing, setEditing] = useState<Matron | null>(null);
   const [deleting, setDeleting] = useState<Matron | null>(null);
 
+  // 批量操作
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+
   const filtered = useMemo(() => {
     let list = matrons.filter((m) => {
       const kw = keyword.trim();
@@ -66,6 +73,32 @@ export default function MatronsList() {
     return list;
   }, [matrons, keyword, certFilter, minRating, sort]);
 
+  const filteredIds = useMemo(() => filtered.map((m) => m.id), [filtered]);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
+  const someFilteredSelected = filteredIds.some((id) => selected.has(id));
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      const next = new Set(prev);
+      filteredIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const clearSelection = () => setSelected(new Set());
+
   const handleDelete = async () => {
     if (!deleting) return;
     await matronApi.remove(deleting.id);
@@ -74,6 +107,22 @@ export default function MatronsList() {
     setDeleting(null);
   };
 
+  const handleBatchDelete = async () => {
+    setBatchBusy(true);
+    let okCount = 0;
+    for (const id of selected) {
+      const res = await matronApi.remove(id);
+      if (res.data) okCount++;
+    }
+    await refreshMatrons();
+    setBatchBusy(false);
+    setBatchDeleting(false);
+    notify(`已批量删除 ${okCount} 条月嫂档案`, 'success');
+    clearSelection();
+  };
+
+  const selectedCount = selected.size;
+
   return (
     <Box>
       <PageHeader
@@ -81,9 +130,22 @@ export default function MatronsList() {
         subtitle={`共 ${matrons.length} 名月嫂 · 支持筛选、排序与增删改查`}
         icon={<Diversity3RoundedIcon />}
         actions={
-          <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setFormOpen(true); }}>
-            新增月嫂
-          </Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {selectedCount > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteSweepRoundedIcon />}
+                onClick={() => setBatchDeleting(true)}
+                disabled={batchBusy}
+              >
+                批量删除（{selectedCount}）
+              </Button>
+            )}
+            <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setFormOpen(true); }}>
+              新增月嫂
+            </Button>
+          </Stack>
         }
       />
 
@@ -128,36 +190,64 @@ export default function MatronsList() {
         </Stack>
       </Card>
 
+      {/* 批量操作工具条 */}
+      {filtered.length > 0 && (
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+          <Checkbox
+            size="small"
+            indeterminate={someFilteredSelected && !allFilteredSelected}
+            checked={allFilteredSelected}
+            onChange={toggleAll}
+          />
+          <Typography variant="caption" color="text.secondary">
+            {selectedCount > 0 ? `已选 ${selectedCount} 项` : '全选当前列表'}
+          </Typography>
+          {selectedCount > 0 && (
+            <Button size="small" onClick={clearSelection} color="inherit" variant="text">清除选择</Button>
+          )}
+        </Stack>
+      )}
+
       {filtered.length === 0 ? (
         <Card><EmptyState icon={<Diversity3RoundedIcon />} title="未找到符合条件的月嫂" subtitle="试试调整筛选条件或新增月嫂档案" actionLabel="新增月嫂" onAction={() => { setEditing(null); setFormOpen(true); }} /></Card>
       ) : view === 'grid' ? (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3,1fr)' }, gap: 2 }}>
           {filtered.map((m) => (
             <Card key={m.id} sx={{ overflow: 'hidden', transition: 'all .2s', '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 12px 28px rgba(26,43,37,0.10)' } }}>
-              <CardActionArea onClick={() => navigate(`/matrons/${m.id}`)}>
-                <CardContent>
-                  <Stack direction="row" spacing={1.6} alignItems="center">
-                    <MatronAvatar name={m.name} size={56} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{m.name}</Typography>
-                        <Chip label={MATRON_STATUS_META[m.status].label} size="small" color={MATRON_STATUS_META[m.status].color} />
+              <Stack direction="row" alignItems="flex-start" sx={{ pl: 1, pt: 1 }}>
+                <Checkbox
+                  size="small"
+                  checked={selected.has(m.id)}
+                  onChange={() => toggleOne(m.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <CardActionArea onClick={() => navigate(`/matrons/${m.id}`)}>
+                    <CardContent>
+                      <Stack direction="row" spacing={1.6} alignItems="center">
+                        <MatronAvatar name={m.name} size={56} />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Typography variant="h5" sx={{ fontWeight: 700 }}>{m.name}</Typography>
+                            <Chip label={MATRON_STATUS_META[m.status].label} size="small" color={MATRON_STATUS_META[m.status].color} />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary">{m.age}岁 · {m.hometown} · 从业{m.experienceYears}年</Typography>
+                        </Box>
                       </Stack>
-                      <Typography variant="caption" color="text.secondary">{m.age}岁 · {m.hometown} · 从业{m.experienceYears}年</Typography>
-                    </Box>
+                      <Box sx={{ mt: 1.5 }}>
+                        <CertificateChips certificates={m.certificates} size="small" />
+                      </Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.8 }}>
+                        <RatingStars value={m.averageRating} size="small" />
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>{m.id}</Typography>
+                      </Stack>
+                    </CardContent>
+                  </CardActionArea>
+                  <Stack direction="row" justifyContent="flex-end" spacing={0.5} sx={{ px: 1.5, pb: 1 }}>
+                    <IconButton size="small" onClick={() => { setEditing(m); setFormOpen(true); }}><EditRoundedIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => setDeleting(m)}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton>
                   </Stack>
-                  <Box sx={{ mt: 1.5 }}>
-                    <CertificateChips certificates={m.certificates} size="small" />
-                  </Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.8 }}>
-                    <RatingStars value={m.averageRating} size="small" />
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>{m.id}</Typography>
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
-              <Stack direction="row" justifyContent="flex-end" spacing={0.5} sx={{ px: 1.5, pb: 1 }}>
-                <IconButton size="small" onClick={() => { setEditing(m); setFormOpen(true); }}><EditRoundedIcon fontSize="small" /></IconButton>
-                <IconButton size="small" color="error" onClick={() => setDeleting(m)}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton>
+                </Box>
               </Stack>
             </Card>
           ))}
@@ -175,6 +265,12 @@ export default function MatronsList() {
                 sx={{ p: 1.8, borderBottom: i < filtered.length - 1 ? '1px solid #EFE9DD' : 'none', cursor: 'pointer', '&:hover': { bgcolor: '#FAF7F2' } }}
                 onClick={() => navigate(`/matrons/${m.id}`)}
               >
+                <Checkbox
+                  size="small"
+                  checked={selected.has(m.id)}
+                  onChange={() => toggleOne(m.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
                 <MatronAvatar name={m.name} size={44} />
                 <Box sx={{ width: 130 }}>
                   <Typography sx={{ fontWeight: 700 }}>{m.name}</Typography>
@@ -202,6 +298,15 @@ export default function MatronsList() {
         confirmColor="error"
         onConfirm={handleDelete}
         onClose={() => setDeleting(null)}
+      />
+      <ConfirmDialog
+        open={batchDeleting}
+        title="批量删除月嫂档案"
+        content={`确定要删除选中的 ${selectedCount} 条月嫂档案吗？该操作不可恢复，且会一并清除其评价与档期记录。`}
+        confirmText={`删除 ${selectedCount} 条`}
+        confirmColor="error"
+        onConfirm={handleBatchDelete}
+        onClose={() => setBatchDeleting(false)}
       />
     </Box>
   );

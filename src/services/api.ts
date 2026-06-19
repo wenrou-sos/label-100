@@ -61,6 +61,7 @@ export const orderApi = {
     return ok<Order>(order);
   },
   update: (id: string, patch: Partial<Order>) => ok<Order | undefined>(store.updateOrder(id, patch)),
+  remove: (id: string) => ok<boolean>(store.deleteOrder(id)),
   setMatched: (id: string, matronIds: string[]) =>
     ok<Order | undefined>(store.updateOrder(id, { matchedMatronIds: matronIds })),
   selectMatron: (id: string, matronId: string) => {

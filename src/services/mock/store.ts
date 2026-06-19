@@ -103,6 +103,11 @@ class MemoryStore {
     this.data.orders[idx] = { ...this.data.orders[idx], ...patch, id };
     return this.data.orders[idx];
   }
+  deleteOrder(id: string): boolean {
+    const before = this.data.orders.length;
+    this.data.orders = this.data.orders.filter((x) => x.id !== id);
+    return this.data.orders.length < before;
+  }
 
   // ---- 合同 ----
   listContracts(): Contract[] {
