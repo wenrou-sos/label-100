@@ -13,6 +13,7 @@ import Payments from '@/pages/Payments';
 import Interviews from '@/pages/Interviews';
 import ServiceProgress from '@/pages/ServiceProgress';
 import Checkin from '@/pages/Checkin';
+import ScheduleCalendar from '@/pages/ScheduleCalendar';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/matrons" element={<MatronsList />} />
         <Route path="/matrons/:id" element={<MatronDetail />} />
+        <Route path="/schedule" element={<ScheduleCalendar />} />
         <Route path="/orders" element={<OrdersList />} />
         <Route path="/orders/new" element={<OrderForm />} />
         <Route path="/matching/:orderId" element={<Matching />} />
