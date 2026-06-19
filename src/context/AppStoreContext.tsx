@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Alert, Snackbar, type AlertColor } from '@mui/material';
 import { matronApi, orderApi, contractApi, paymentApi, interviewApi } from '@/services/api';
-import type { Contract, Interview, Matron, Order, Payment } from '@/types';
+import { aggregateNotifications } from '@/utils/notifications';
+import type { Contract, Interview, Matron, Order, Payment, SystemNotification } from '@/types';
 
 interface ToastState {
   open: boolean;
@@ -15,6 +16,11 @@ interface AppStoreValue {
   contracts: Contract[];
   payments: Payment[];
   interviews: Interview[];
+  notifications: SystemNotification[];
+  unreadCount: number;
+  readNotificationIds: ReadonlySet<string>;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
   loading: boolean;
   refreshMatrons: () => Promise<void>;
   refreshOrders: () => Promise<void>;
@@ -35,6 +41,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>({ open: false, message: '', severity: 'success' });
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
 
   const refreshMatrons = useCallback(async () => {
     const res = await matronApi.list();
@@ -65,6 +72,44 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     setToast({ open: true, message, severity });
   }, []);
 
+  // ===== 聚合通知：在订单/合同/月嫂数据变化时重新生成 =====
+  const notifications = React.useMemo(
+    () => aggregateNotifications(orders, contracts, matrons),
+    [orders, contracts, matrons],
+  );
+
+  // 自动清理已不存在的通知的 readIds，避免集合无限膨胀
+  React.useEffect(() => {
+    const validIds = new Set(notifications.map((n) => n.id));
+    setReadNotificationIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (validIds.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [notifications]);
+
+  const unreadCount = React.useMemo(
+    () => notifications.reduce((acc, n) => acc + (readNotificationIds.has(n.id) ? 0 : 1), 0),
+    [notifications, readNotificationIds],
+  );
+
+  const markNotificationRead = useCallback((id: string) => {
+    setReadNotificationIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setReadNotificationIds(() => new Set(notifications.map((n) => n.id)));
+  }, [notifications]);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -82,6 +127,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     contracts,
     payments,
     interviews,
+    notifications,
+    unreadCount,
+    readNotificationIds,
+    markNotificationRead,
+    markAllNotificationsRead,
     loading,
     refreshMatrons,
     refreshOrders,

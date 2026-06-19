@@ -169,3 +169,26 @@ export interface ApiResponse<T> {
   data: T;
   message: string;
 }
+
+// 通知类型
+export type NotificationType =
+  | 'order_pending_match'    // 新订单待匹配
+  | 'contract_pending_sign'  // 合同待签署
+  | 'service_expiring_today' // 服务今日到期
+  | 'schedule_conflict';     // 月嫂档期冲突
+
+export interface SystemNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  description: string;
+  createdAt: string;   // ISO datetime，通知产生的业务时间
+  orderId?: string;    // 关联订单号
+  matronId?: string;   // 关联月嫂（档期冲突等）
+  targetPath: string;  // 点击跳转路径
+}
+
+export interface NotificationState {
+  items: SystemNotification[];
+  readIds: Set<string>;
+}
