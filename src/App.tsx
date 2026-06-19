@@ -4,6 +4,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import MatronsList from '@/pages/MatronsList';
 import MatronDetail from '@/pages/MatronDetail';
+import CustomersList from '@/pages/CustomersList';
+import CustomerDetail from '@/pages/CustomerDetail';
 import OrderForm from '@/pages/OrderForm';
 import OrdersList from '@/pages/OrdersList';
 import Matching from '@/pages/Matching';
@@ -23,6 +25,8 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/matrons" element={<MatronsList />} />
         <Route path="/matrons/:id" element={<MatronDetail />} />
+        <Route path="/customers" element={<CustomersList />} />
+        <Route path="/customers/:id" element={<CustomerDetail />} />
         <Route path="/schedule" element={<ScheduleCalendar />} />
         <Route path="/orders" element={<OrdersList />} />
         <Route path="/orders/new" element={<OrderForm />} />

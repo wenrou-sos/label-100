@@ -8,6 +8,7 @@ import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
 import FingerprintOutlined from '@mui/icons-material/FingerprintOutlined';
 import VideocamOutlined from '@mui/icons-material/VideocamOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 
 export interface NavItem {
   label: string;
@@ -19,6 +20,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: '工作台', path: '/dashboard', icon: DashboardOutlined, group: '总览' },
   { label: '月嫂档案', path: '/matrons', icon: Diversity3Outlined, group: '资源' },
+  { label: '客户档案', path: '/customers', icon: PeopleOutlinedIcon, group: '资源' },
   { label: '档期日历', path: '/schedule', icon: EventAvailableOutlined, group: '资源' },
   { label: '客户下单', path: '/orders/new', icon: PersonAddAltOutlined, group: '业务' },
   { label: '订单管理', path: '/orders', icon: AssignmentOutlined, group: '业务' },
@@ -31,6 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
 // 根据路径推断页面标题
 export function titleFromPath(pathname: string): string {
   if (pathname.startsWith('/matrons')) return '月嫂档案';
+  if (pathname.startsWith('/customers')) return '客户档案';
   if (pathname.startsWith('/schedule')) return '档期日历';
   if (pathname.startsWith('/orders/new')) return '客户下单';
   if (pathname.startsWith('/orders')) return '订单管理';
