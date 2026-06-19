@@ -11,6 +11,7 @@ import type {
   MatchCandidate,
   Matron,
   Order,
+  OrderStatus,
   Payment,
   PaymentMethod,
   Review,
@@ -41,6 +42,48 @@ export const matronApi = {
 };
 
 // ============ 订单 ============
+
+const STATUS_LABEL: Record<string, string> = {
+  matching: '待匹配',
+  matched: '待签约',
+  contracted: '已签约',
+  in_service: '服务中',
+  completed: '已完成',
+};
+
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  matching: ['matching', 'matched'],
+  matched: ['matching', 'matched', 'contracted'],
+  contracted: ['matched', 'contracted', 'in_service'],
+  in_service: ['contracted', 'in_service', 'completed'],
+  completed: ['in_service', 'completed'],
+};
+
+function validateStatusTransition(order: Order, newStatus: OrderStatus): string | null {
+  const currentStatus = order.status;
+  if (currentStatus === newStatus) return null;
+  const validTargets = VALID_TRANSITIONS[currentStatus] ?? [];
+  if (!validTargets.includes(newStatus)) {
+    return `不允许将状态从「${STATUS_LABEL[currentStatus]}」直接改为「${STATUS_LABEL[newStatus]}」`;
+  }
+  if (newStatus === 'matched' && !order.selectedMatronId) {
+    return '状态改为「待签约」前必须先选定月嫂';
+  }
+  if (newStatus === 'contracted') {
+    if (!order.selectedMatronId) {
+      return '状态改为「已签约」前必须先选定月嫂';
+    }
+    const contract = store.getContractByOrder(order.id);
+    if (!contract) {
+      return '状态改为「已签约」前必须先创建合同并完成签署';
+    }
+    if (contract.status === 'draft') {
+      return '合同尚未签署，请先完成签署';
+    }
+  }
+  return null;
+}
+
 export const orderApi = {
   list: () => ok<Order[]>(store.listOrders()),
   get: (id: string) => ok<Order | undefined>(store.getOrder(id)),
@@ -60,7 +103,18 @@ export const orderApi = {
     });
     return ok<Order>(order);
   },
-  update: (id: string, patch: Partial<Order>) => ok<Order | undefined>(store.updateOrder(id, patch)),
+  update: (id: string, patch: Partial<Order>) => {
+    if (patch.status) {
+      const current = store.getOrder(id);
+      if (current) {
+        const err = validateStatusTransition(current, patch.status as OrderStatus);
+        if (err) {
+          return ok<Order | undefined>(undefined, err);
+        }
+      }
+    }
+    return ok<Order | undefined>(store.updateOrder(id, patch));
+  },
   remove: (id: string) => ok<boolean>(store.deleteOrder(id)),
   setMatched: (id: string, matronIds: string[]) =>
     ok<Order | undefined>(store.updateOrder(id, { matchedMatronIds: matronIds })),

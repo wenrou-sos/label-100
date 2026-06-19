@@ -293,7 +293,7 @@ export default function MatronsList() {
       <ConfirmDialog
         open={!!deleting}
         title="删除月嫂档案"
-        content={`确定要删除「${deleting?.name}」的档案吗？该操作不可恢复。`}
+        content={`确定要删除「${deleting?.name}」的档案吗？该操作不可恢复，关联的订单引用、合同、支付记录、面试预约和打卡记录也会一并清理或回退。`}
         confirmText="删除"
         confirmColor="error"
         onConfirm={handleDelete}
@@ -302,7 +302,7 @@ export default function MatronsList() {
       <ConfirmDialog
         open={batchDeleting}
         title="批量删除月嫂档案"
-        content={`确定要删除选中的 ${selectedCount} 条月嫂档案吗？该操作不可恢复，且会一并清除其评价与档期记录。`}
+        content={`确定要删除选中的 ${selectedCount} 条月嫂档案吗？该操作不可恢复，关联的订单引用、合同、支付记录、面试预约和打卡记录也会一并清理或回退。`}
         confirmText={`删除 ${selectedCount} 条`}
         confirmColor="error"
         onConfirm={handleBatchDelete}

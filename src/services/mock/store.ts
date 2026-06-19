@@ -63,6 +63,37 @@ class MemoryStore {
   deleteMatron(id: string): boolean {
     const before = this.data.matrons.length;
     this.data.matrons = this.data.matrons.filter((x) => x.id !== id);
+
+    this.data.orders.forEach((o, idx) => {
+      const newMatchedIds = o.matchedMatronIds.filter((m) => m !== id);
+      const isSelected = o.selectedMatronId === id;
+      const newStatus = isSelected
+        ? (o.status === 'contracted' || o.status === 'in_service' || o.status === 'completed'
+            ? 'matching'
+            : 'matching')
+        : o.status;
+      this.data.orders[idx] = {
+        ...o,
+        matchedMatronIds: newMatchedIds,
+        selectedMatronId: isSelected ? undefined : o.selectedMatronId,
+        status: newStatus,
+      };
+    });
+
+    const contractIdsToRemove: string[] = [];
+    this.data.contracts.forEach((c) => {
+      if (c.matronId === id) {
+        contractIdsToRemove.push(c.id);
+      }
+    });
+    this.data.contracts = this.data.contracts.filter((c) => c.matronId !== id);
+    if (contractIdsToRemove.length > 0) {
+      this.data.payments = this.data.payments.filter((p) => !contractIdsToRemove.includes(p.contractId));
+    }
+
+    this.data.interviews = this.data.interviews.filter((iv) => iv.matronId !== id);
+    this.data.checkins = this.data.checkins.filter((ck) => ck.matronId !== id);
+
     return this.data.matrons.length < before;
   }
   addReview(matronId: string, review: Omit<Review, 'id' | 'createdAt'>): Review {
@@ -106,6 +137,32 @@ class MemoryStore {
   deleteOrder(id: string): boolean {
     const before = this.data.orders.length;
     this.data.orders = this.data.orders.filter((x) => x.id !== id);
+
+    const contractIdsToRemove: string[] = [];
+    this.data.contracts.forEach((c) => {
+      if (c.orderId === id) {
+        contractIdsToRemove.push(c.id);
+      }
+    });
+    this.data.contracts = this.data.contracts.filter((c) => c.orderId !== id);
+    if (contractIdsToRemove.length > 0) {
+      this.data.payments = this.data.payments.filter((p) => !contractIdsToRemove.includes(p.contractId));
+    }
+
+    this.data.interviews = this.data.interviews.filter((iv) => iv.orderId !== id);
+    this.data.checkins = this.data.checkins.filter((ck) => ck.orderId !== id);
+
+    this.data.matrons.forEach((m) => {
+      const newSchedules = m.schedules.filter((s) => s.orderId !== id);
+      if (newSchedules.length !== m.schedules.length) {
+        m.schedules = newSchedules;
+      }
+      const newReviews = m.reviews.filter((r) => r.orderId !== id);
+      if (newReviews.length !== m.reviews.length) {
+        m.reviews = newReviews;
+      }
+    });
+
     return this.data.orders.length < before;
   }
 

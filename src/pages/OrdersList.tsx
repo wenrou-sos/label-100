@@ -119,14 +119,24 @@ export default function OrdersList() {
   const handleBatchStatus = async () => {
     setBatchBusy(true);
     let okCount = 0;
+    const failedMsgs: string[] = [];
     for (const id of selected) {
       const res = await orderApi.update(id, { status: targetStatus });
-      if (res.data) okCount++;
+      if (res.data) {
+        okCount++;
+      } else if (res.message && res.message !== 'success') {
+        failedMsgs.push(`订单 ${id}: ${res.message}`);
+      }
     }
     await refreshOrders();
     setBatchBusy(false);
     setStatusDialogOpen(false);
-    notify(`已将 ${okCount} 笔订单状态更新为「${ORDER_STATUS_META[targetStatus].label}」`, 'success');
+    if (okCount > 0) {
+      notify(`已将 ${okCount} 笔订单状态更新为「${ORDER_STATUS_META[targetStatus].label}」`, 'success');
+    }
+    if (failedMsgs.length > 0) {
+      notify(`${failedMsgs.length} 笔订单更新失败：${failedMsgs[0]}${failedMsgs.length > 1 ? ` 等共 ${failedMsgs.length} 条` : ''}`, 'error');
+    }
     clearSelection();
   };
 
@@ -285,7 +295,7 @@ export default function OrdersList() {
       <ConfirmDialog
         open={batchDeleting}
         title="批量删除订单"
-        content={`确定要删除选中的 ${selectedCount} 笔订单吗？该操作不可恢复，相关的合同与支付记录不会自动清除，请确认后再操作。`}
+        content={`确定要删除选中的 ${selectedCount} 笔订单吗？该操作不可恢复，关联的合同、支付记录、面试预约、打卡记录和评价也会一并清除。`}
         confirmText={`删除 ${selectedCount} 笔`}
         confirmColor="error"
         onConfirm={handleBatchDelete}
