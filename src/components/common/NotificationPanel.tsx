@@ -4,15 +4,30 @@ import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { useAppStore } from '@/context/AppStoreContext';
 import { NOTIFICATION_TYPE_META } from '@/utils/notifications';
+import { formatDateZh } from '@/utils/format';
 import { EmptyState } from './EmptyState';
 import type { SystemNotification } from '@/types';
-import { format, isToday, parseISO } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { differenceInCalendarDays, isToday, parseISO } from 'date-fns';
 
-function formatTime(iso: string): string {
-  const d = parseISO(iso);
-  if (isToday(d)) return `今天 ${format(d, 'HH:mm')}`;
-  return format(d, 'M月d日 HH:mm', { locale: zhCN });
+/**
+ * 业务时间展示：基于 yyyy-MM-dd 真实日期，不展示虚构的时分秒。
+ * - 今天 = "今天"
+ * - 昨天 = "昨天"
+ * - 3 天内 = "N 天前"
+ * - 其他 = "M月d日"
+ */
+function formatBusinessTime(iso: string): string {
+  try {
+    const d = parseISO(iso);
+    const now = new Date();
+    const diff = differenceInCalendarDays(now, d);
+    if (isToday(d) || diff === 0) return '今天';
+    if (diff === 1) return '昨天';
+    if (diff > 1 && diff <= 3) return `${diff} 天前`;
+    return formatDateZh(iso);
+  } catch {
+    return iso;
+  }
 }
 
 interface Props {
@@ -161,7 +176,7 @@ export function NotificationPanel({ anchorEl, open, onClose }: Props) {
                           </Typography>
                         )}
                         <Typography variant="caption" color="text.disabled">
-                          {formatTime(n.createdAt)}
+                          {formatBusinessTime(n.createdAt)}
                         </Typography>
                       </Stack>
                     </Box>
