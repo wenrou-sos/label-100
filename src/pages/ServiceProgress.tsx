@@ -12,6 +12,7 @@ import {
   Rating,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
@@ -74,7 +75,12 @@ export default function ServiceProgress() {
 
   const handleStart = async () => {
     setBusy(true);
-    await orderApi.startService(order.id);
+    const res = await orderApi.startService(order.id);
+    if (!res.data) {
+      notify(res.message, 'error');
+      setBusy(false);
+      return;
+    }
     await refreshOrders();
     setBusy(false);
     notify('服务已开始');
@@ -135,9 +141,19 @@ export default function ServiceProgress() {
                 </Stack>
               </Stack>
               <Divider sx={{ my: 1.8 }} />
-              {order.status === 'contracted' && (
-                <Button fullWidth variant="contained" startIcon={<PlayArrowRoundedIcon />} disabled={busy} onClick={handleStart}>开始服务</Button>
-              )}
+              {order.status === 'contracted' && (() => {
+                const today = new Date().toISOString().slice(0, 10);
+                const earliest = new Date(new Date(order.startDate).getTime() - 86400000).toISOString().slice(0, 10);
+                const ok = today >= earliest;
+                const tip = ok ? '' : `最早可于 ${order.startDate} 前1天（${earliest}）开始服务`;
+                return (
+                  <Tooltip title={tip} placement="top">
+                    <span style={{ display: 'block', width: '100%' }}>
+                      <Button fullWidth variant="contained" startIcon={<PlayArrowRoundedIcon />} disabled={busy || !ok} onClick={handleStart}>开始服务</Button>
+                    </span>
+                  </Tooltip>
+                );
+              })()}
               {order.status === 'in_service' && (
                 <Button fullWidth variant="contained" color="secondary" startIcon={<CheckCircleRoundedIcon />} disabled={busy} onClick={() => setFinishOpen(true)}>结束服务并结算尾款</Button>
               )}

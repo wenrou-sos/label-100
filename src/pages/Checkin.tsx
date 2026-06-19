@@ -29,7 +29,7 @@ export default function Checkin() {
   const [submitting, setSubmitting] = useState(false);
 
   const myOrders = useMemo(
-    () => orders.filter((o) => o.selectedMatronId === matronId && (o.status === 'in_service' || o.status === 'contracted')),
+    () => orders.filter((o) => o.selectedMatronId === matronId && o.status === 'in_service'),
     [orders, matronId],
   );
 
@@ -99,7 +99,7 @@ export default function Checkin() {
                 </Box>
               )}
               {matronId && myOrders.length === 0 && (
-                <Typography variant="caption" color="text.secondary">该月嫂暂无进行中的服务订单</Typography>
+                <Typography variant="caption" color="text.secondary">该月嫂暂无服务中（in_service）的订单，请先在服务进度页开始服务</Typography>
               )}
 
               {orderId && (

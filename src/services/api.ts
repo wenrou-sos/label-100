@@ -63,9 +63,37 @@ export const orderApi = {
   update: (id: string, patch: Partial<Order>) => ok<Order | undefined>(store.updateOrder(id, patch)),
   setMatched: (id: string, matronIds: string[]) =>
     ok<Order | undefined>(store.updateOrder(id, { matchedMatronIds: matronIds })),
-  selectMatron: (id: string, matronId: string) =>
-    ok<Order | undefined>(store.updateOrder(id, { selectedMatronId: matronId, status: 'matched' })),
-  startService: (id: string) => ok<Order | undefined>(store.updateOrder(id, { status: 'in_service' })),
+  selectMatron: (id: string, matronId: string) => {
+    const order = store.updateOrder(id, { selectedMatronId: matronId, status: 'matched' });
+    // 选定月嫂后，自动为该订单创建合同草稿
+    if (order) {
+      const createContract = () => {
+        const existing = store.getContractByOrder(id);
+        if (existing) return existing;
+        const selectedMatron = store.listMatrons().find(m => m.id === matronId);
+        if (!selectedMatron) return undefined;
+        const amount = order.serviceDays * PRICE_PER_DAY;
+        const deposit = Math.round(amount * 0.3);
+        return store.createContract({ orderId: id, matronId, amount, deposit });
+      };
+      createContract();
+    }
+    return ok<Order | undefined>(order);
+  },
+  startService: (id: string) => {
+    const order = store.getOrder(id);
+    if (!order) return ok<Order | undefined>(undefined, '订单不存在');
+    if (order.status !== 'contracted') {
+      const statusMap: Record<string, string> = { pending: '待匹配', matched: '待签约', contracted: '已签约待开始', in_service: '服务中', completed: '已完成' };
+      return ok<Order | undefined>(undefined, `当前状态不可开始服务（${statusMap[order.status]}）`);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const earliest = new Date(new Date(order.startDate).getTime() - 86400000).toISOString().slice(0, 10);
+    if (today < earliest) {
+      return ok<Order | undefined>(undefined, `未到服务开始日期，最早可于 ${order.startDate} 前1天开始服务`);
+    }
+    return ok<Order | undefined>(store.updateOrder(id, { status: 'in_service' }));
+  },
 };
 
 // ============ 智能匹配 ============
@@ -141,6 +169,19 @@ export const paymentApi = {
   settleFinal: (contractId: string, method: PaymentMethod) => {
     const contract = store.getContract(contractId);
     if (!contract) return ok<Payment | undefined>(undefined, '合同不存在');
+    const order = store.listOrders().find((o) => o.id === contract.orderId);
+    // 只有服务中(in_service)或已完成的订单才能结算尾款，且必须已过结束日期
+    if (order && order.status !== 'in_service' && order.status !== 'completed') {
+      return ok<Payment | undefined>(undefined, '当前订单状态不可结算尾款，请先开始服务');
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (order && order.endDate > today) {
+      return ok<Payment | undefined>(undefined, `服务尚未结束，${order.endDate} 后方可结算尾款`);
+    }
+    // 已结算则不再重复
+    if (contract.status === 'final_settled') {
+      return ok<Payment | undefined>(undefined, '该合同尾款已结算');
+    }
     const finalAmount = contract.amount - contract.deposit;
     const payment = store.createPayment({
       contractId,
@@ -151,7 +192,6 @@ export const paymentApi = {
       paidAt: new Date().toISOString(),
     });
     store.updateContract(contractId, { status: 'final_settled', settledAt: new Date().toISOString() });
-    const order = store.listOrders().find((o) => o.id === contract.orderId);
     if (order) store.updateOrder(order.id, { status: 'completed' });
     return ok<Payment>(payment, '尾款结算成功，订单已完成');
   },
@@ -171,6 +211,13 @@ export const checkinApi = {
   byOrder: (orderId: string) => ok<Checkin[]>(store.getCheckinsByOrder(orderId)),
   // 月嫂签到
   checkin: (input: { orderId: string; matronId: string; note?: string }) => {
+    const order = store.getOrder(input.orderId);
+    if (!order) return ok<Checkin | undefined>(undefined, '订单不存在');
+    // 只有服务中(in_service)的订单才能签到
+    if (order.status !== 'in_service') {
+      const statusMap: Record<string, string> = { pending: '待匹配', matched: '待签约', contracted: '已签约待开始', in_service: '服务中', completed: '已完成' };
+      return ok<Checkin | undefined>(undefined, `订单未开始服务（${statusMap[order.status]}），无法签到`);
+    }
     const todayStr = new Date().toISOString().slice(0, 10);
     const exist = store.getCheckinsByOrder(input.orderId).find((c) => c.date === todayStr);
     if (exist) return ok<Checkin>(exist, '今日已签到');

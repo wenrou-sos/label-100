@@ -4,7 +4,8 @@
       "Bash(mkdir -p \"C:/Users/Administrator/.claude/skills/chuti\")",
       "Edit(~/.claude/skills/chuti/**)",
       "Bash(rm \"C:/Users/Administrator/.claude/skills/chuti/SKILL.md\")",
-      "Edit(~/.claude/skills/real-bug-find/**)"
+      "Edit(~/.claude/skills/real-bug-find/**)",
+      "Bash(Set-Content -Path record.json -Value '{ *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Administrator\\.claude\\skills",

@@ -17,6 +17,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
@@ -36,7 +37,22 @@ export default function Payments() {
   const [method, setMethod] = useState<PaymentMethod>('wechat');
   const [submitting, setSubmitting] = useState(false);
 
-  const pending = contracts.filter((c) => c.status === 'signed' || c.status === 'deposit_paid');
+  const pending = contracts.filter((c) => {
+    if (c.status === 'signed') return true;
+    if (c.status === 'deposit_paid') {
+      // 尾款：仅服务中(in_service)且已过结束日期的订单可结算
+      const order = orders.find((o) => o.id === c.orderId);
+      const today = new Date().toISOString().slice(0, 10);
+      if (!order) return true;
+      return order.status === 'in_service' && order.endDate <= today;
+    }
+    return false;
+  });
+  // 已付定金但还不可结算尾款的合同，用于展示状态
+  const pendingFinalNotReady = contracts.filter((c) => {
+    if (c.status !== 'deposit_paid') return false;
+    return !pending.includes(c);
+  });
 
   const handlePay = async () => {
     if (!target) return;
@@ -98,15 +114,54 @@ export default function Payments() {
                           </Box>
                         </Stack>
                       </TableCell>
-                      <TableCell>{c.status === 'signed' ? '定金' : '尾款'}</TableCell>
+                      <TableCell>
+                        {c.status === 'signed' ? '定金' : '尾款'}
+                        {c.status === 'deposit_paid' && (() => {
+                          const order = orders.find((o) => o.id === c.orderId);
+                          const today = new Date().toISOString().slice(0, 10);
+                          const ok = order && order.status === 'in_service' && order.endDate <= today;
+                          if (ok) return null;
+                          let reason = '';
+                          if (!order) reason = '订单状态未知';
+                          else if (order.status !== 'in_service' && order.status !== 'completed') reason = `订单未开始服务（${ { pending: '待匹配', matched: '待签约', contracted: '已签约待开始', in_service: '服务中', completed: '已完成' } as Record<string, string> }[order.status] }）`;
+                          else if (order.endDate > today) reason = `服务尚未结束，${order.endDate} 后可结算`;
+                          return (
+                            <Typography variant="caption" display="block" color="text.secondary">
+                              · {reason}
+                            </Typography>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>{formatMoney(c.status === 'signed' ? c.deposit : c.amount - c.deposit)}</TableCell>
                       <TableCell><Chip label={meta.label} size="small" color={meta.color} /></TableCell>
                       <TableCell align="right">
                         {c.status === 'signed' ? (
                           <Button size="small" variant="contained" color="secondary" onClick={() => setTarget({ contract: c, type: 'deposit' })}>支付定金</Button>
-                        ) : (
-                          <Button size="small" variant="contained" onClick={() => setTarget({ contract: c, type: 'final' })}>结算尾款</Button>
-                        )}
+                        ) : (() => {
+                          const order = orders.find((o) => o.id === c.orderId);
+                          const today = new Date().toISOString().slice(0, 10);
+                          const ok = order && order.status === 'in_service' && order.endDate <= today;
+                          let tip = '';
+                          if (!ok) {
+                            if (!order) tip = '订单状态未知';
+                            else if (order.status !== 'in_service' && order.status !== 'completed') tip = '请先开始服务';
+                            else if (order.endDate > today) tip = `${order.endDate} 服务结束后方可结算`;
+                          }
+                          return (
+                            <Tooltip title={tip || ''} placement="left">
+                              <span>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  disabled={!ok}
+                                  onClick={() => setTarget({ contract: c, type: 'final' })}
+                                >
+                                  结算尾款
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   );
