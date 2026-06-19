@@ -255,6 +255,18 @@ const orders: Order[] = [
     selectedMatronId: 'm_001',
     createdAt: iso(subDays(today, 8)),
   },
+  // 赵敏的第二笔订单（同一手机号，测试客户去重）
+  {
+    id: 'o_006',
+    customer: { id: 'c_006', name: '赵敏', phone: '13800003333', expectedDeliveryDate: iso(addDays(today, 60)) },
+    serviceDays: 42,
+    startDate: iso(addDays(today, 65)),
+    endDate: iso(addDays(today, 106)),
+    requirement: { lactation: true, confinementMeal: true, nightCare: true, housework: false },
+    status: 'matching',
+    matchedMatronIds: [],
+    createdAt: iso(subDays(today, 1)),
+  },
 ];
 
 // 为月嫂补充档期（关联订单）

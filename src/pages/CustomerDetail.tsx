@@ -22,28 +22,38 @@ import { RatingStars } from '@/components/common/RatingStars';
 import { MatronAvatar } from '@/components/common/MatronAvatar';
 import { ORDER_STATUS_META } from '@/constants/meta';
 import { formatDate, formatDateZh, maskPhone } from '@/utils/format';
-import type { Review } from '@/types';
+import type { Customer, Review } from '@/types';
 
 interface CustomerReview extends Review {
   matronName: string;
 }
 
 export default function CustomerDetail() {
-  const { id } = useParams();
+  const { phone } = useParams();
   const { orders, matrons } = useAppStore();
   const navigate = useNavigate();
 
   const customerOrders = useMemo(() => {
-    if (!id) return [];
+    if (!phone) return [];
     return orders
-      .filter((o) => o.customer.id === id)
+      .filter((o) => o.customer.phone === phone)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [orders, id]);
+  }, [orders, phone]);
 
-  const customer = customerOrders[0]?.customer;
+  const customer = useMemo((): Customer | null => {
+    if (customerOrders.length === 0) return null;
+    const latestOrder = customerOrders[0];
+    const customerIds = [...new Set(customerOrders.map((o) => o.customer.id))];
+    return {
+      id: customerIds.join(','),
+      name: latestOrder.customer.name,
+      phone: latestOrder.customer.phone,
+      expectedDeliveryDate: latestOrder.customer.expectedDeliveryDate,
+    };
+  }, [customerOrders]);
 
   const customerReviews = useMemo(() => {
-    if (!id) return [] as CustomerReview[];
+    if (!phone || customerOrders.length === 0) return [] as CustomerReview[];
     const orderIds = new Set(customerOrders.map((o) => o.id));
     const reviews: CustomerReview[] = [];
     for (const matron of matrons) {
@@ -54,7 +64,7 @@ export default function CustomerDetail() {
       }
     }
     return reviews.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [customerOrders, matrons, id]);
+  }, [customerOrders, matrons, phone]);
 
   const getMatron = (matronId: string) => {
     return matrons.find((m) => m.id === matronId);
@@ -72,7 +82,7 @@ export default function CustomerDetail() {
     { label: '客户姓名', value: customer.name },
     { label: '联系电话', value: maskPhone(customer.phone) },
     { label: '预产期', value: formatDate(customer.expectedDeliveryDate) },
-    { label: '客户编号', value: customer.id },
+    { label: '关联客户编号', value: customer.id },
     { label: '历史订单', value: `${customerOrders.length} 笔` },
     { label: '首次下单', value: formatDate(customerOrders[customerOrders.length - 1]?.createdAt) },
   ];
@@ -84,7 +94,7 @@ export default function CustomerDetail() {
       </Button>
       <PageHeader
         title={customer.name}
-        subtitle={`共 ${customerOrders.length} 笔历史订单`}
+        subtitle={`共 ${customerOrders.length} 笔历史订单 · 按手机号聚合`}
         icon={<PeopleOutlineRoundedIcon />}
       />
 

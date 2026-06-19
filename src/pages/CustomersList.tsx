@@ -34,23 +34,23 @@ export interface CustomerAggregate extends Customer {
 function aggregateCustomers(orders: Order[]): CustomerAggregate[] {
   const map = new Map<string, CustomerAggregate>();
   for (const order of orders) {
-    const customerId = order.customer.id;
-    if (!map.has(customerId)) {
-      map.set(customerId, {
+    const phone = order.customer.phone;
+    if (!map.has(phone)) {
+      map.set(phone, {
         ...order.customer,
+        id: phone,
         orderCount: 0,
         orders: [],
         latestOrderDate: order.createdAt,
       });
     }
-    const agg = map.get(customerId)!;
+    const agg = map.get(phone)!;
     agg.orderCount += 1;
     agg.orders.push(order);
     if (order.createdAt > agg.latestOrderDate) {
       agg.latestOrderDate = order.createdAt;
-      if (order.customer.expectedDeliveryDate && order.customer.expectedDeliveryDate !== agg.expectedDeliveryDate) {
-        agg.expectedDeliveryDate = order.customer.expectedDeliveryDate;
-      }
+      agg.name = order.customer.name;
+      agg.expectedDeliveryDate = order.customer.expectedDeliveryDate;
     }
   }
   return Array.from(map.values()).sort((a, b) => b.latestOrderDate.localeCompare(a.latestOrderDate));

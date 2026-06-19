@@ -26,7 +26,7 @@ export default function App() {
         <Route path="/matrons" element={<MatronsList />} />
         <Route path="/matrons/:id" element={<MatronDetail />} />
         <Route path="/customers" element={<CustomersList />} />
-        <Route path="/customers/:id" element={<CustomerDetail />} />
+        <Route path="/customers/:phone" element={<CustomerDetail />} />
         <Route path="/schedule" element={<ScheduleCalendar />} />
         <Route path="/orders" element={<OrdersList />} />
         <Route path="/orders/new" element={<OrderForm />} />
