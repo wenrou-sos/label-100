@@ -11,6 +11,7 @@ import OrdersList from '@/pages/OrdersList';
 import Matching from '@/pages/Matching';
 import ContractsList from '@/pages/ContractsList';
 import ContractDetail from '@/pages/ContractDetail';
+import ContractPrint from '@/pages/ContractPrint';
 import Payments from '@/pages/Payments';
 import Interviews from '@/pages/Interviews';
 import ServiceProgress from '@/pages/ServiceProgress';
@@ -20,6 +21,7 @@ import ScheduleCalendar from '@/pages/ScheduleCalendar';
 export default function App() {
   return (
     <Routes>
+      <Route path="/contracts/:orderId/print" element={<ContractPrint />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />

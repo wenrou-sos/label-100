@@ -14,6 +14,7 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import DrawRoundedIcon from '@mui/icons-material/DrawRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import { useAppStore } from '@/context/AppStoreContext';
 import { PageHeader } from '@/components/common/PageHeader';
 import { MatronAvatar } from '@/components/common/MatronAvatar';
@@ -139,6 +140,15 @@ export default function ContractDetail() {
           <Card>
             <CardContent>
               <Typography variant="h4" sx={{ mb: 1.5 }}>操作</Typography>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<PrintRoundedIcon />}
+                onClick={() => window.open(`/contracts/${order.id}/print`, '_blank', 'width=900,height=1200')}
+                sx={{ mb: 1.5 }}
+              >
+                打印合同
+              </Button>
               {contract.status === 'draft' && (
                 <Stack spacing={1.2}>
                   <Button fullWidth variant="contained" startIcon={<DrawRoundedIcon />} disabled={signing} onClick={handleSign}>
